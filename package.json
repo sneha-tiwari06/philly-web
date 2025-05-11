@@ -1,0 +1,31 @@
+{
+  "name": "pctours",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@stripe/react-stripe-js": "^3.7.0",
+    "@stripe/stripe-js": "^7.3.0",
+    "aos": "^2.3.4",
+    "axios": "^1.9.0",
+    "bootstrap": "^5.3.5",
+    "date-fns": "^4.1.0",
+    "html-react-parser": "^5.2.3",
+    "next": "15.3.1",
+    "react": "^19.0.0",
+    "react-datepicker": "^8.3.0",
+    "react-dom": "^19.0.0",
+    "swiper": "^11.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}
