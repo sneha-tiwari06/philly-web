@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
+import { API_BASE_URL } from "../utils/config";
 
 interface Testimonial {
   _id: string;
@@ -13,7 +14,12 @@ interface Testimonial {
 }
 
 const slugify = (str: string) =>
-  str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^\w\-]+/g, "").replace(/\-\-+/g, "-");
+  str
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\-]+/g, "")
+    .replace(/\-\-+/g, "-");
 
 const TestimonialDetail = ({ categoryId }: { categoryId?: string }) => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
@@ -21,14 +27,16 @@ const TestimonialDetail = ({ categoryId }: { categoryId?: string }) => {
   useEffect(() => {
     const fetchTestimonials = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/testimonials");
-        
+        const res = await fetch(
+          `${API_BASE_URL}/testimonials`
+        );
+
         const data = await res.json();
         // console.log(data, "testi")
         const filtered = categoryId
           ? data.filter(
               (testimonial: Testimonial) =>
-                slugify(testimonial.category?.category || '') === categoryId
+                slugify(testimonial.category?.category || "") === categoryId
             )
           : data;
 
@@ -59,7 +67,9 @@ const TestimonialDetail = ({ categoryId }: { categoryId?: string }) => {
             testimonials.map((testimonial) => (
               <div className="swiper-slide testimBox" key={testimonial._id}>
                 <div className="inner">
-                  <div className="quotation-mark"><span>❞</span></div>
+                  <div className="quotation-mark">
+                    <span>❞</span>
+                  </div>
                   <div className="testim-text scroller">
                     <p className="mb-0"></p>
                     <p>{testimonial.description}</p>
@@ -80,21 +90,30 @@ const TestimonialDetail = ({ categoryId }: { categoryId?: string }) => {
           <div className="col-4 ratingBox">
             <div className="inside">
               <div className="img-fluid">
-                <img src="/images/google.jpg" alt="Washington DC Monuments Google Reviews" />
+                <img
+                  src="/images/google.jpg"
+                  alt="Washington DC Monuments Google Reviews"
+                />
               </div>
             </div>
           </div>
           <div className="col-4 ratingBox">
             <div className="inside">
               <div className="img-fluid">
-                <img src="/images/facebook.jpg" alt="Washington DC Monuments Facebook Reviews" />
+                <img
+                  src="/images/facebook.jpg"
+                  alt="Washington DC Monuments Facebook Reviews"
+                />
               </div>
             </div>
           </div>
           <div className="col-4 ratingBox">
             <div className="inside">
               <div className="img-fluid">
-                <img src="/images/tripadvisor.jpg" alt="Washington DC Monuments Tripadvisor Reviews" />
+                <img
+                  src="/images/tripadvisor.jpg"
+                  alt="Washington DC Monuments Tripadvisor Reviews"
+                />
               </div>
             </div>
           </div>

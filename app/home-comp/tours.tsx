@@ -6,8 +6,9 @@ import "swiper/css";
 import "swiper/css/navigation";
 import BookingModal from "./bookingModal";
 import { useEffect, useState } from "react";
-import axiosInstance, { BASE_IMAGE_URL } from "../utils/axiosInstnace";
 import Link from "next/link";
+import { API_BASE_URL, IMAGE_BASE_URL } from "../utils/config";
+import axios from "axios";
 interface Tours {
   _id: string;
   slugURL: string;
@@ -22,7 +23,7 @@ const PackageSlider = () => {
     useEffect(() => {
       const fetchTours = async () => {
         try {
-          const response = await axiosInstance.get("/categories");
+          const response = await axios.get(`${API_BASE_URL}/categories`);
           setTours(response.data);
         } catch (err) {
           if (err instanceof Error) {
@@ -94,7 +95,7 @@ const PackageSlider = () => {
                 <div className="package-card__img">
                 <Link href={`/tours/${tour.slugURL}`}>
                 <img
-                      src={`${BASE_IMAGE_URL}${tour.attached_document}`}
+                      src={`${IMAGE_BASE_URL}${tour.attached_document}`}
                       alt={tour.category}
                       />
                   </Link>
@@ -133,7 +134,7 @@ const PackageSlider = () => {
          )}
       </div>
     </section>
-      <BookingModal selectedCategory="category" />
+      <BookingModal />
       </>
   );
 };

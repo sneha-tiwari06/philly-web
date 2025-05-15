@@ -2,58 +2,66 @@
 import React, { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import axiosInstance from "../utils/axiosInstnace";
+import axios from "axios";
+import { API_BASE_URL } from "../utils/config";
 type Tour = {
-    _id: string;
-    selectedCategory?: {
-      category: string;
-    };
+  _id: string;
+  selectedCategory?: {
+    category: string;
   };
-  
-  type BlockedDate = {
-    blockDate: string;
-    isActive: boolean;
-  };
-  
-  type BlockedTime = {
-    blockDate: string;
-    blockTime: string;
-    isActive: boolean;
-  };
-  
-  type FormState = {
-    tourId: string;
-    blockDate: string;
-    blockTime: string;
-    adultPassengers: number;
-    kidPassengers: number;
-  };
+  isPrivateTour: string;
+  tourPrice: number,
+  adultPrice: number,
+  kidsPrice: number,
+};
+
+type BlockedDate = {
+  blockDate: string;
+  isActive: boolean;
+};
+
+type BlockedTime = {
+  blockDate: string;
+  blockTime: string;
+  isActive: boolean;
+};
+
+type FormState = {
+  tourId: string;
+  blockDate: string;
+  blockTime: string;
+  adultPassengers: number;
+  kidPassengers: number;
+  totalCars?: number;
+};
 const BookingTours = () => {
-    const [form, setForm] = useState<FormState>({
-        tourId: "",
-        blockDate: "",
-        blockTime: "",
-        adultPassengers: 2,
-        kidPassengers: 0,
-      });
-    
-      const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-      const [tours, setTours] = useState<Tour[]>([]);
-      const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
-      const [blockedTimes, setBlockedTimes] = useState<BlockedTime[]>([]);
-      const [disabledTimes, setDisabledTimes] = useState<string[]>([]);
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState<string | null>(null);
-  
+  const [form, setForm] = useState<FormState>({
+    tourId: "",
+    blockDate: "",
+    blockTime: "",
+    adultPassengers: 2,
+    kidPassengers: 0,
+  });
+
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [tours, setTours] = useState<Tour[]>([]);
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+  const [blockedTimes, setBlockedTimes] = useState<BlockedTime[]>([]);
+  const [disabledTimes, setDisabledTimes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const timeSlots = ["10:00 AM", "01:00 PM", "04:00 PM", "07:00 PM"];
+  const selectedTour = tours.find(t => t._id === form.tourId);
+  const isPrivateTour = selectedTour?.isPrivateTour;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [toursRes, blockDatesRes, blockTimesRes] = await Promise.all([
-          axiosInstance.get("/tours"),
-          axiosInstance.get("/block-date"),
-          axiosInstance.get("/block-time"),
+          axios.get(`${API_BASE_URL}/tours`),
+          axios.get(`${API_BASE_URL}/block-date`),
+          axios.get(`${API_BASE_URL}/block-time`),
         ]);
         setTours(toursRes.data.data);
         setBlockedDates(blockDatesRes.data);
@@ -103,15 +111,23 @@ const BookingTours = () => {
 
   const handleSubmit = async () => {
     try {
-      const response = await axiosInstance.post("/bookings/book-tour", form);
+      const selectedTour = tours.find((t) => t._id === form.tourId);
+      const isPrivateTour = selectedTour?.isPrivateTour;
+
+      const price = isPrivateTour
+        ? (selectedTour?.tourPrice || 0) * (form.totalCars || 1)
+        : (selectedTour?.adultPrice || 0) * form.adultPassengers +
+        (selectedTour?.kidsPrice || 0) * form.kidPassengers;
+
       const bookingDetails = {
         tourId: form.tourId,
-        tourName: tours.find(t => t._id === form.tourId)?.selectedCategory?.category || "Tour",
+        tourName: selectedTour?.selectedCategory?.category || "Tour",
         blockDate: form.blockDate,
         blockTime: form.blockTime,
         adultPassengers: form.adultPassengers,
         kidPassengers: form.kidPassengers,
-        price: 69 * form.adultPassengers + 49 * form.kidPassengers,
+        totalCars: form.totalCars || 0,
+        price,
       };
 
       localStorage.setItem("bookingDetails", JSON.stringify(bookingDetails));
@@ -122,19 +138,16 @@ const BookingTours = () => {
         blockTime: "",
         adultPassengers: 2,
         kidPassengers: 0,
+        totalCars: 1,
       });
       setSelectedDate(null);
       setDisabledTimes([]);
-         // Navigate to cart page
-         window.location.href = "/cart";
+      window.location.href = "/cart";
     } catch (err) {
-        if(err instanceof Error){
-            setError(err.message);
-        }
-        else {
-            setError("An unknown error occurred.");
-          } }
+      setError(err instanceof Error ? err.message : "An unknown error occurred.");
+    }
   };
+
 
   return (
     <div className="col-xl-4 col-md-5 stickyBar">
@@ -151,9 +164,19 @@ const BookingTours = () => {
               <select
                 className="form-control"
                 value={form.tourId}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, tourId: e.target.value }))
-                }
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const selectedTour = tours.find((t) => t._id === selectedId);
+                  const isPrivateTour = selectedTour?.isPrivateTour;
+
+                  setForm((prev) => ({
+                    ...prev,
+                    tourId: selectedId,
+                    adultPassengers: isPrivateTour ? 0 : 2,
+                    kidPassengers: isPrivateTour ? 0 : 0,
+                    totalCars: isPrivateTour ? 1 : undefined,
+                  }));
+                }}
               >
                 <option value="">Select Tour</option>
                 {tours.map((tour) => (
@@ -199,9 +222,8 @@ const BookingTours = () => {
                       disabled={disabledTimes.includes(time)}
                     />
                     <label
-                      className={`btn btn-outline-third ${
-                        disabledTimes.includes(time) ? "disabled" : ""
-                      }`}
+                      className={`btn btn-outline-third ${disabledTimes.includes(time) ? "disabled" : ""
+                        }`}
                       htmlFor={`radio${index}`}
                     >
                       {time}
@@ -212,42 +234,65 @@ const BookingTours = () => {
             </div>
 
             {/* Passenger Counts */}
-            <div className="form-group bg-white p-3 rounded mb-1">
-              <div className="input-group mb-1">
-                <label className="input-group-text col-2 bg-white text-primary fw-bold">
-                  Adult
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={form.adultPassengers}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      adultPassengers: parseInt(e.target.value) || 1,
-                    }))
-                  }
-                  className="form-control"
-                />
+            {isPrivateTour ? (
+              <div className="form-group bg-white p-3 rounded mb-1">
+                <div className="input-group mb-1">
+                  <label className="input-group-text col-5 bg-white text-primary fw-bold">
+                    Total Cars
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.totalCars || 1}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        totalCars: parseInt(e.target.value) || 1,
+                      }))
+                    }
+                    className="form-control"
+                  />
+                </div>
               </div>
-              <div className="input-group mb-1">
-                <label className="input-group-text col-2 bg-white text-primary fw-bold">
-                  Kids
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.kidPassengers}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      kidPassengers: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="form-control"
-                />
+            ) : (
+              <div className="form-group bg-white p-3 rounded mb-1">
+                <div className="input-group mb-1">
+                  <label className="input-group-text col-2 bg-white text-primary fw-bold">
+                    Adult
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.adultPassengers}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        adultPassengers: parseInt(e.target.value) || 1,
+                      }))
+                    }
+                    className="form-control"
+                  />
+                </div>
+                <div className="input-group mb-1">
+                  <label className="input-group-text col-2 bg-white text-primary fw-bold">
+                    Kids
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.kidPassengers}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        kidPassengers: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="form-control"
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
 
             <div className="form-group">
               <button className="btn btn-primary w-100" onClick={handleSubmit}>

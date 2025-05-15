@@ -1,13 +1,17 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import axiosInstance from "../utils/axiosInstnace";
-import { useRouter } from 'next/router';
+import axios from "axios";
+import { API_BASE_URL } from "../utils/config";
 
 type Tour = {
   _id: string;
   selectedCategory?: {
     category: string;
   };
+  isPrivateTour: string;
+  tourPrice: number,
+  adultPrice: number,
+  kidsPrice: number,
 };
 
 type BlockedDate = {
@@ -27,6 +31,7 @@ type FormState = {
   blockTime: string;
   adultPassengers: number;
   kidPassengers: number;
+  totalCars?: number;
 };
 
 function BookingForm() {
@@ -53,9 +58,9 @@ function BookingForm() {
     const fetchData = async () => {
       try {
         const [toursRes, blockDatesRes, blockTimesRes] = await Promise.all([
-          axiosInstance.get("/tours"),
-          axiosInstance.get("/block-date"),
-          axiosInstance.get("/block-time"),
+          axios.get(`${API_BASE_URL}/tours`),
+          axios.get(`${API_BASE_URL}/block-date`),
+          axios.get(`${API_BASE_URL}/block-time`),
         ]);
         setTours(toursRes.data.data);
         setBlockedDates(blockDatesRes.data);
@@ -73,6 +78,7 @@ function BookingForm() {
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const date = new Date(value);
+
     if (isNaN(date.getTime())) return;
 
     setSelectedDate(date);
@@ -90,8 +96,6 @@ function BookingForm() {
       return;
     }
 
-    setForm((prev) => ({ ...prev, blockDate: value }));
-
     const disabled = blockedTimes
       .filter(
         (bt) =>
@@ -101,44 +105,56 @@ function BookingForm() {
       .map((bt) => bt.blockTime);
 
     setDisabledTimes(disabled || []);
+
+    // ✅ Use ISO string to store in form
+    setForm((prev) => ({
+      ...prev,
+      blockDate: value,
+    }));
   };
 
+  const selectedTour = tours.find(t => t._id === form.tourId);
+  const isPrivateTour = selectedTour?.isPrivateTour;
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+
     e.preventDefault();
     try {
-      const response = await axiosInstance.post("/bookings/book-tour", form);
+      const selectedTour = tours.find((t) => t._id === form.tourId);
+      const isPrivateTour = selectedTour?.isPrivateTour;
+
+      const price = isPrivateTour
+        ? (selectedTour?.tourPrice || 0) * (form.totalCars || 1)
+        : (selectedTour?.adultPrice || 0) * (form.adultPassengers || 2) +
+        (selectedTour?.kidsPrice || 0) * (form.kidPassengers || 0);
+
       const bookingDetails = {
         tourId: form.tourId,
-        tourName: tours.find(t => t._id === form.tourId)?.selectedCategory?.category || "Tour",
+        tourName: selectedTour?.selectedCategory?.category || "Tour",
         blockDate: form.blockDate,
         blockTime: form.blockTime,
         adultPassengers: form.adultPassengers,
         kidPassengers: form.kidPassengers,
-        price: 69 * form.adultPassengers + 49 * form.kidPassengers,
+        totalCars: form.totalCars || 0,
+        price,
+        isPrivateTour,
       };
 
       localStorage.setItem("bookingDetails", JSON.stringify(bookingDetails));
 
-      // Reset form state
       setForm({
         tourId: "",
         blockDate: "",
         blockTime: "",
         adultPassengers: 2,
         kidPassengers: 0,
+        totalCars: 1,
       });
       setSelectedDate(null);
       setDisabledTimes([]);
-
-      // Navigate to cart page
       window.location.href = "/cart";
-
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unknown error occurred.");
-      }
+      setError(err instanceof Error ? err.message : "An unknown error occurred.");
     }
   };
 
@@ -155,7 +171,19 @@ function BookingForm() {
                     <select
                       className="form-control"
                       value={form.tourId}
-                      onChange={(e) => setForm({ ...form, tourId: e.target.value })}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const selectedTour = tours.find((t) => t._id === selectedId);
+                        const isPrivateTour = selectedTour?.isPrivateTour;
+
+                        setForm((prev) => ({
+                          ...prev,
+                          tourId: selectedId,
+                          adultPassengers: isPrivateTour ? 0 : 2,
+                          kidPassengers: isPrivateTour ? 0 : 0,
+                          totalCars: isPrivateTour ? 1 : undefined,
+                        }));
+                      }}
                       required
                     >
                       <option value="">Select Tour</option>
@@ -199,35 +227,55 @@ function BookingForm() {
                     <label htmlFor="booktime">Time</label>
                   </div>
 
-                  {/* Adult */}
-                  <div className="col form-floating">
-                    <input
-                      type="number"
-                      min="1"
-                      className="form-control"
-                      value={form.adultPassengers}
-                      onChange={(e) =>
-                        setForm({ ...form, adultPassengers: parseInt(e.target.value) || 0 })
-                      }
-                    />
-                    <label htmlFor="adult">Adult ($69/ea.)</label>
-                  </div>
+                  {isPrivateTour ? (
+                    <div className="col form-floating">
 
-                  {/* Kid */}
-                  <div className="col form-floating">
-                    <input
-                      type="number"
-                      min="0"
-                      className="form-control"
-                      value={form.kidPassengers}
-                      onChange={(e) =>
-                        setForm({ ...form, kidPassengers: parseInt(e.target.value) || 0 })
-                      }
-                    />
-                    <label htmlFor="kids">
-                      Kids (12 years and<br /> under - $49/ea.)
-                    </label>
-                  </div>
+                      <input
+                        type="number"
+                        min="1"
+                        value={form.totalCars || 1}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            totalCars: parseInt(e.target.value) || 1,
+                          }))
+                        }
+                        className="form-control"
+                      />
+                      <label htmlFor="kids">
+                        Total Cars
+                      </label>
+                    </div>
+                  ) : (
+                    <> <div className="col form-floating">
+                      <input
+                        type="number"
+                        min="1"
+                        className="form-control"
+                        value={form.adultPassengers}
+                        onChange={(e) =>
+                          setForm({ ...form, adultPassengers: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                      <label htmlFor="adult">Adult ($69/ea.)</label>
+                    </div>
+
+                      <div className="col form-floating">
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-control"
+                          value={form.kidPassengers}
+                          onChange={(e) =>
+                            setForm({ ...form, kidPassengers: parseInt(e.target.value) || 0 })
+                          }
+                        />
+                        <label htmlFor="kids">
+                          Kids (12 years and<br /> under - $49/ea.)
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -241,7 +289,7 @@ function BookingForm() {
                       !form.tourId ||
                       !form.blockDate ||
                       !form.blockTime ||
-                      form.adultPassengers < 1
+                      (!isPrivateTour && form.adultPassengers < 1)
                     }
                   >
                     Book Now

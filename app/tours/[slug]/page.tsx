@@ -45,6 +45,7 @@ function TourDetails() {
                                 <div className="sec-title mb-0">
                                     <h1 className="h1 mb-0">Philly City <span className="text-third">{slug
                                     .split("-")
+                                    .filter(word => word.toLowerCase() !== "phillycity") 
                                     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
                                     .join(" ")}</span></h1>
                                 </div>

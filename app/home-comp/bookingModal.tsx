@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import axiosInstance from "../utils/axiosInstnace";
+import axios from "axios";
+import { API_BASE_URL } from "../utils/config";
 
 type BookingModalProps = {
-  selectedCategory: string;
+  selectedCategory?: string;
 };
 
 type Tour = {
@@ -14,6 +15,10 @@ type Tour = {
   selectedCategory?: {
     category: string;
   };
+  isPrivateTour: string;
+  tourPrice: number,
+  adultPrice: number,
+  kidsPrice: number,
 };
 
 type BlockedDate = {
@@ -26,29 +31,41 @@ type BlockedTime = {
   blockTime: string;
   isActive: boolean;
 };
-
+type FormState = {
+  tourId: string;
+  blockDate: string;
+  blockTime: string;
+  adultPassengers: number;
+  kidPassengers: number;
+  totalCars?: number;
+};
 const BookingModal: React.FC<BookingModalProps> = ({ selectedCategory }) => {
   const modalRef = useRef<HTMLDivElement | null>(null);
   const timeSlots = ["10:00 AM", "01:00 PM", "04:00 PM", "07:00 PM"];
-
+  const [form, setForm] = useState<FormState>({
+    tourId: "",
+    blockDate: "",
+    blockTime: "",
+    adultPassengers: 2,
+    kidPassengers: 0,
+  });
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [adultPassengers, setAdultPassengers] = useState<number>(2);
   const [kidPassengers, setKidPassengers] = useState<number>(0);
-  const [tourId, setTourId] = useState<string>("");
-
   const [tours, setTours] = useState<Tour[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [blockedTimes, setBlockedTimes] = useState<BlockedTime[]>([]);
   const [disabledTimes, setDisabledTimes] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [toursRes, blockDatesRes, blockTimesRes] = await Promise.all([
-          axiosInstance.get("/tours"),
-          axiosInstance.get("/block-date"),
-          axiosInstance.get("/block-time"),
+          axios.get(`${API_BASE_URL}/tours`),
+          axios.get(`${API_BASE_URL}/block-date`),
+          axios.get(`${API_BASE_URL}/block-time`),
         ]);
         setTours(toursRes.data.data);
         setBlockedDates(blockDatesRes.data);
@@ -102,41 +119,52 @@ const BookingModal: React.FC<BookingModalProps> = ({ selectedCategory }) => {
       .map((bt) => bt.blockTime);
 
     setDisabledTimes(disabled || []);
+    setForm((prev) => ({
+    ...prev,
+    blockDate: date.toISOString(),
+  }));
   };
 
+  const selectedTour = tours.find(t => t._id === form.tourId);
+  const isPrivateTour = selectedTour?.isPrivateTour;
+
   const handleSubmit = async () => {
-    if (!tourId || !selectedDate || !selectedTime) {
-      alert("Please fill all required fields.");
-      return;
-    }
-
-    const formData = {
-      tourId,
-      blockDate: selectedDate.toISOString().split("T")[0],
-      blockTime: selectedTime,
-      adultPassengers,
-      kidPassengers,
-    };
-
     try {
-      await axiosInstance.post("/bookings/book-tour", formData);
+      const selectedTour = tours.find((t) => t._id === form.tourId);
+      const isPrivateTour = selectedTour?.isPrivateTour;
+
+      const price = isPrivateTour
+        ? (selectedTour?.tourPrice || 0) * (form.totalCars || 1)
+        : (selectedTour?.adultPrice || 0) * (form.adultPassengers || 2) +
+        (selectedTour?.kidsPrice || 0) * (form.kidPassengers || 0);
 
       const bookingDetails = {
-        tourId: tourId,
-        tourName:
-          tours.find((t) => t._id === tourId)?.selectedCategory?.category ||
-          "Tour",
-        blockDate: formData.blockDate,
-        blockTime: formData.blockTime,
-        adultPassengers,
-        kidPassengers,
-        price: 69 * adultPassengers + 49 * kidPassengers,
+        tourId: form.tourId,
+        tourName: selectedTour?.selectedCategory?.category || "Tour",
+        blockDate: form.blockDate,
+        blockTime: form.blockTime,
+        adultPassengers: form.adultPassengers,
+        kidPassengers: form.kidPassengers,
+        totalCars: form.totalCars || 0,
+        price,
+        isPrivateTour,
       };
 
       localStorage.setItem("bookingDetails", JSON.stringify(bookingDetails));
+
+      setForm({
+        tourId: "",
+        blockDate: "",
+        blockTime: "",
+        adultPassengers: 2,
+        kidPassengers: 0,
+        totalCars: 1,
+      });
+      setSelectedDate(null);
+      setDisabledTimes([]);
       window.location.href = "/cart";
     } catch (err) {
-      alert("Booking failed. Please try again.");
+      setError(err instanceof Error ? err.message : "An unknown error occurred.");
     }
   };
 
@@ -180,8 +208,20 @@ const BookingModal: React.FC<BookingModalProps> = ({ selectedCategory }) => {
                     <label className="text-primary fw-bold mb-2">Tour</label>
                     <select
                       className="form-control"
-                      value={tourId}
-                      onChange={(e) => setTourId(e.target.value)}
+                      value={form.tourId}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const selectedTour = tours.find((t) => t._id === selectedId);
+                        const isPrivateTour = selectedTour?.isPrivateTour;
+
+                        setForm((prev) => ({
+                          ...prev,
+                          tourId: selectedId,
+                          adultPassengers: isPrivateTour ? 0 : 2,
+                          kidPassengers: isPrivateTour ? 0 : 0,
+                          totalCars: isPrivateTour ? 1 : undefined,
+                        }));
+                      }}
                     >
                       <option value="">Select Tour</option>
                       {tours.map((tour) => (
@@ -208,15 +248,21 @@ const BookingModal: React.FC<BookingModalProps> = ({ selectedCategory }) => {
                             name="booktime"
                             value={time}
                             checked={selectedTime === time}
-                            onChange={(e) => setSelectedTime(e.target.value)}
-                            disabled={disabledTimes.includes(time)}
+                            onChange={(e) => {
+                              const time = e.target.value;
+                              setSelectedTime(time);
+                              setForm((prev) => ({
+                                ...prev,
+                                blockTime: time,
+                              }));
+                            }}
+
                           />
                           <label
-                            className={`btn btn-outline-${
-                              disabledTimes.includes(time)
-                                ? "secondary"
-                                : "third"
-                            }`}
+                            className={`btn btn-outline-${disabledTimes.includes(time)
+                              ? "secondary"
+                              : "third"
+                              }`}
                             htmlFor={`radio${index + 1}`}
                           >
                             {time}
@@ -225,53 +271,77 @@ const BookingModal: React.FC<BookingModalProps> = ({ selectedCategory }) => {
                       ))}
                     </div>
                   </div>
-
-                  <div className="form-group mb-2">
-                    <div className="input-group mb-2">
-                      <label className="input-group-text col-2 bg-white text-primary fw-bold">
-                        Adult
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        className="form-control"
-                        value={adultPassengers}
-                        onChange={(e) =>
-                          setAdultPassengers(Number(e.target.value))
-                        }
-                      />
-                      <span className="input-group-text col-3 bg-white fw-bold">
-                        ${69 * adultPassengers}
-                      </span>
+                  {isPrivateTour ? (
+                    <div className="form-group mb-2">
+                      <div className="input-group mb-1">
+                        <label className="input-group-text col-6 bg-white text-primary fw-bold">
+                          Total Cars
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={form.totalCars || 1}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              totalCars: parseInt(e.target.value) || 1,
+                            }))
+                          }
+                          className="form-control"
+                        />
+                        <span className="input-group-text col-3 bg-white fw-bold">
+                          ${selectedTour?.tourPrice * (form.totalCars || 1)}
+                        </span>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="form-group mb-2">
+                      <div className="input-group mb-2">
+                        <label className="input-group-text col-2 bg-white text-primary fw-bold">
+                          Adult
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          className="form-control"
+                          value={form.adultPassengers}
+                          onChange={(e) =>
+                            setAdultPassengers(Number(e.target.value))
+                          }
+                        />
+                        <span className="input-group-text col-3 bg-white fw-bold">
+                          ${69 * adultPassengers}
+                        </span>
+                      </div>
 
-                    <div className="input-group mb-2">
-                      <label className="input-group-text col-2 bg-white text-primary fw-bold">
-                        Kids
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        className="form-control"
-                        value={kidPassengers}
-                        onChange={(e) =>
-                          setKidPassengers(Number(e.target.value))
-                        }
-                      />
-                      <span className="input-group-text col-3 bg-white fw-bold">
-                        ${49 * kidPassengers}
-                      </span>
-                    </div>
+                      <div className="input-group mb-2">
+                        <label className="input-group-text col-2 bg-white text-primary fw-bold">
+                          Kids
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          className="form-control"
+                          value={form.kidPassengers}
+                          onChange={(e) =>
+                            setKidPassengers(Number(e.target.value))
+                          }
+                        />
+                        <span className="input-group-text col-3 bg-white fw-bold">
+                          ${49 * kidPassengers}
+                        </span>
+                      </div>
 
-                    <div className="input-group">
-                      <label className="input-group-text col bg-light fw-bold">
-                        Total
-                      </label>
-                      <span className="input-group-text col-3 bg-light fw-bold">
-                        ${69 * adultPassengers + 49 * kidPassengers}
-                      </span>
+                      <div className="input-group">
+                        <label className="input-group-text col bg-light fw-bold">
+                          Total
+                        </label>
+                        <span className="input-group-text col-3 bg-light fw-bold">
+                          ${69 * adultPassengers + 49 * kidPassengers}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="col-lg-12">
@@ -285,7 +355,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ selectedCategory }) => {
             </div>
           </div>
         </div>
-      </div> 
+      </div>
     </div>
   );
 };

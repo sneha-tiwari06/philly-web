@@ -5,7 +5,8 @@ import { Navigation, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import Link from "next/link";
-import axiosInstance, { BASE_IMAGE_URL } from "../utils/axiosInstnace";
+import axios from "axios";
+import { API_BASE_URL, IMAGE_BASE_URL } from "../utils/config";
 
 interface Event {
   _id: string,
@@ -23,7 +24,7 @@ const EventSlider = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await axiosInstance.get("/events");
+        const response = await axios.get(`${API_BASE_URL}/events`);
         setEvents(response.data);
       } catch (err) {
         if (err instanceof Error) {
@@ -88,7 +89,7 @@ const EventSlider = () => {
                 <div className="package-card__inner">
                   <div className="package-card__img">
                     <Link href={`/events/${event.eventURL}`}>
-                      <img src={`${BASE_IMAGE_URL}${event.attached_document}`} alt={event.eventName} />
+                      <img src={`${IMAGE_BASE_URL}${event.attached_document}`} alt={event.eventName} />
                     </Link>
                   </div>
                   <div className="package-card__content">

@@ -1,9 +1,8 @@
 import React from "react";
-// import BrandSlider from "../home-comp/brandSlider";
-// import Link from "next/link";
+import BrandSlider from "../home-comp/brandSlider";
+import Link from "next/link";
 
 const Careers = () => {
-  
   return (
     <>
       <main>

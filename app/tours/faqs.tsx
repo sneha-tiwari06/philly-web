@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { API_BASE_URL } from "../utils/config";
 
 interface Faq {
   _id: string;
@@ -12,7 +13,12 @@ interface Faq {
 }
 
 const slugify = (str: string) =>
-  str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^\w\-]+/g, "").replace(/\-\-+/g, "-");
+  str
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\-]+/g, "")
+    .replace(/\-\-+/g, "-");
 
 const Faqs = ({ categoryId }: { categoryId?: string }) => {
   const [faqs, setFaqs] = useState<Faq[]>([]);
@@ -21,7 +27,7 @@ const Faqs = ({ categoryId }: { categoryId?: string }) => {
   useEffect(() => {
     const fetchFaqs = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/faqs");
+        const res = await fetch(`${API_BASE_URL}/faqs`);
         const data = await res.json();
 
         const filtered = categoryId

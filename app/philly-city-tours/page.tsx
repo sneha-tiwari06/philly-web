@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axiosInstance, { BASE_IMAGE_URL } from "../utils/axiosInstnace";
 import Link from "next/link";
 import BookingModal from "../home-comp/bookingModal";
+import axios from "axios";
+import { API_BASE_URL, IMAGE_BASE_URL } from "../utils/config";
 
 interface Tours {
   _id: string;
@@ -22,7 +23,7 @@ const Tours = () => {
   useEffect(() => {
     const fetchTours = async () => {
       try {
-        const response = await axiosInstance.get("/categories");
+        const response = await axios.get(`${API_BASE_URL}/categories`);
         setTours(response.data);
       } catch (err) {
         if (err instanceof Error) {
@@ -71,7 +72,7 @@ const Tours = () => {
                       <div className="package-card__img">
                         <Link href={`/tours/${tour.slugURL}`}>
                           <img
-                            src={`${BASE_IMAGE_URL}${tour.attached_document}`}
+                            src={`${IMAGE_BASE_URL}${tour.attached_document}`}
                             alt={tour.category}
                           />
                         </Link>

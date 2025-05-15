@@ -5,6 +5,7 @@ import { Navigation, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import axios from "axios";
+import { API_BASE_URL, IMAGE_BASE_URL } from "../utils/config";
 
 interface GalleryImage {
   _id: string;
@@ -23,17 +24,20 @@ function Gallery({ slug }: { slug: string }) {
   useEffect(() => {
     const fetchGalleryImages = async () => {
       try {
-        const res = await axios.get<GalleryImage[]>("http://localhost:5000/api/gallery/gallery");
-        const filteredImages = res.data.filter((img) => img.tourId.slugURL === slug);
+        const res = await axios.get<GalleryImage[]>(
+         ` ${API_BASE_URL}/gallery/gallery`
+        );
+        const filteredImages = res.data.filter(
+          (img) => img.tourId.slugURL === slug
+        );
         setGalleryImages(filteredImages);
       } catch (err) {
         console.error("Failed to fetch gallery images", err);
       }
     };
-  
+
     if (slug) fetchGalleryImages();
   }, [slug]);
-  
 
   return (
     <section className="tour_gallery_box">
@@ -70,14 +74,14 @@ function Gallery({ slug }: { slug: string }) {
           <SwiperSlide key={img._id} className="sideImg">
             <div className="product-imgBox position-relative">
               <a
-                href={`http://localhost:5000${img.imagePath}`}
+                href={`${IMAGE_BASE_URL}${img.imagePath}`}
                 className="d-block"
                 data-magnify="magnify"
                 data-group="primg"
                 data-caption={img.galleryAltText}
               >
                 <img
-                  src={`http://localhost:5000${img.imagePath}`}
+                  src={`${IMAGE_BASE_URL}${img.imagePath}`}
                   className="rounded object-cover"
                   alt={img.galleryAltText || "Gallery Image"}
                   title={img.galleryAltText || "Gallery Image"}

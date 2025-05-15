@@ -1,4 +1,4 @@
-// import EventModal from "./events/[slug]/eventModal";
+import EventModal from "./events/[slug]/eventModal";
 import AboutUs from "./home-comp/aboutHome";
 import BookingHome from "./home-comp/booking-home";
 import BrandSlider from "./home-comp/brandSlider";
@@ -40,7 +40,7 @@ export default function Home() {
       <EventSlider />
       <SpecialOffer />
       <ItinerarySlider />
-      {/* <EventModal /> */}
+      <EventModal />
     </>
   );
 }
